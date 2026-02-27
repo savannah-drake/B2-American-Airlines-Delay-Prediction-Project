@@ -22,15 +22,15 @@ try:
     cur = conn.cursor()
     
     # Prepare the SQL statement
-    sqlquery = 'select*from LOCAL_DATABASE.ORAAUE.SEQUENCE_SPOILAGE'
+    sqlquery = 'select*from LOCAL_DATABASE.ORAAUE.ASSIGNMENT_HISTORY'
     
     # Run the SQL statement and capture query output in a Pandas dataframe
     cur.execute(sqlquery)
     df = cur.fetch_pandas_all()
     
     # Load pandas dataframe into a file, make sure you escape the backslash if using windows in the filepath like this C:\\mylocation\\myfolder\\filename.csv
-   ## filename = 'Flight Info.csv'
-   ## df.to_csv(filename, sep='|',encoding='utf-8')
+    filename = 'Assignment_History.csv'
+    df.to_csv(filename, sep='|',encoding='utf-8')
     
 except Exception as e:
     print("Error: the error message is..... \n" + str(e))
