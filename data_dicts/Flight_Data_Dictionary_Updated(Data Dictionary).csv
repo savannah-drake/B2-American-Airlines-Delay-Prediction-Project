@@ -1,0 +1,44 @@
+Variable Name,Plain Language Description,,,,Data Type
+CONTRCT_YR,The year this record applies to,,,,int
+CONTRCT_MONTH,The month this record applies to,,,,int
+FLEET_CD,Code indicating the aircraft type,,,,int
+SEQ_NBR,Number identifying a crew work sequence,,,,int
+SEQ_ORIGIN_DT,Date the sequence begins,,,,string (date)
+SEQ_BASE,Crew home base for the sequence,,,,string
+IS_BLOCK_OE_IND,Indicates whether the sequence includes training flights,,,,string (flag)
+SEQ_OE_SNPSHT_ID,Internal ID for training snapshot tracking,,,,string
+SEQ_ID,Unique internal identifier for the sequence,,,,float (ID)
+SEQ_SOURCE_CD,System source that created the sequence,,,,string
+SEQ_ROW_EFF_TMS,Timestamp when the sequence record became active,,,,string (timestamp)
+SEQ_ROW_EXPIRY_TMS,Timestamp when the sequence record expired,,,,string (timestamp)
+TRIP_ID,Unique identifier for a trip,,,,float (ID)
+TRIP_SOURCE_CD,System source that created the trip,,,,string
+TRIP_ROW_EFF_TMS,Timestamp when the trip record became active,,,,string (timestamp)
+TRIP_ROW_EXPIRY_TMS,Timestamp when the trip record expired,,,,string (timestamp)
+SEQ_POSITN_CD,Crew position for the sequence,,,,string
+FOS_SEQ_STATUS_TXT,Operational status of the sequence,,,,string
+STATUS_TXT,General status description of the sequence,,,,string
+CKP_EMP_NBR,Employee ID of the check pilot,,,,string
+CKP_BASE,Home base of the check pilot,,,,string
+CKP_ROLE_TYPE_DESC,"Role of the check pilot (instructor, evaluator, etc.)",,,,string
+STUDENT_EMP_NBR,Employee ID of the student pilot,,,,string
+STUDENT_POSITN_CD,Position of the student pilot,,,,string
+STUDENT_TRNG_TYPE,Type of training the student is undergoing,,,,string
+STUDENT_BASE,Home base of the student pilot,,,,string
+IS_STUDENT_OE_STUDENT,Indicates whether student is in operating experience training,,,,boolean/flag
+STUDENT_OE_START_DT,Start date of student operating experience,,,,string (date)
+STUDENT_OE_END_DT,End date of student operating experience,,,,string (date)
+TRIP_QLA_MSG_JSON_TXT,System-generated quality or alert messages for the trip,,,,string / JSON text
+TRIP_COORD_CMNT_TXT,Coordinator comments about the trip,,,,string
+SEQ_DUTY_PERIOD_CT,Number of duty periods in the sequence,,,,string (numeric)
+SEQ_CALNDR_DAY_CT,Number of calendar days the sequence spans,,,,float
+SEQ_EST_DEP_TMS,Estimated departure time,,,,string (time)
+SEQ_EST_ARVL_TMS,Estimated arrival time,,,,string (time)
+SEQ_ACTL_DEP_TMS,Actual departure time,,,,string (time)
+SEQ_ACTL_ARVL_TMS,Actual arrival time,,,,string (time)
+CKP_ASSIGNED_IND,Indicates whether a check pilot is assigned,,,,string (flag)
+STUDENT_ASSIGNED_IND,Indicates whether a student pilot is assigned,,,,boolean
+SEQ_ACTIVE_IND,Indicates whether the sequence is active,,,,boolean
+TRIP_ACTIVE_IND,Indicates whether the trip is active,,,,boolean
+LOAD_TMS,Timestamp when the data was loaded,,,,string (timestamp)
+SF_LOAD_TMS,Timestamp when the data was loaded into downstream systems,,,,string (timestamp)

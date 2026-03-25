@@ -1,9 +1,0 @@
-# B2-American-Airlines-Delay-Prediction-Project
-Arrival Time Change Prediction Model 
-Changes in flight arrival times can create a ripple effect across an airline’s operations. Everything from crew assignments to gate planning and passenger connections can be impacted. For American Airlines, accurate arrival predictions are especially important because many internal tools rely on this information  to make time-sensitive decisions. 
-
-One example is a system used to decide whether a departing flight should be held for connecting  passengers whose inbound flight is delayed. This tool uses the expected arrival time of the incoming  flight to suggest whether a hold is reasonable, sending a recommendation to the operations team  roughly 30 to 55 minutes before the next flight is scheduled to leave. The issue arises when the arrival  time shifts after the flight is already in the air. At that point, the recommendation might no longer make  sense, and the team may either hold a flight unnecessarily or miss the chance to help passengers make  their connection. 
-
-This problem is focused on predicting whether an arrival time is likely to change once a flight is airborne.  If we can flag these changes earlier, it would give teams better insight and allow for smarter, more timely  decisions. 
-Even more useful would be an estimate of how much the arrival time is expected to change. Will the  flight arrive five minutes late, or twenty? Could it actually make up time and land ahead of schedule?  Getting a clearer picture of that shift would help the airline plan more accurately, avoid unnecessary  disruptions, and improve the experience for both passengers and employees. 
-In short, having a reliable way to anticipate changes in arrival times after takeoff, along with an estimate  of the size of that change, would be a major step forward in reducing day-of-flight chaos and improving  operational efficiency.
