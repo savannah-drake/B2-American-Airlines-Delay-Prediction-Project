@@ -1,0 +1,130 @@
+import pandas as pd
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.metrics import roc_auc_score
+
+def run_v323_full_guide():
+    print("\n" + "="*85)
+    print("      AMERICAN AIRLINES: FULL-GUIDE RATIONAL SIMULATOR (v3.23)      ")
+    print("="*85)
+
+    # --- 1. DATA LOADING & TRAINING ---
+    f_path = 'data/Flight_Data_With_Weather_FINAL.csv'
+    if not os.path.exists(f_path):
+        print(f"Error: {f_path} not found."); return
+        
+    df = pd.read_csv(f_path)
+    df['SPOILED_HRS'] = df['TOTAL_SPOILED_HRS'].fillna(0.0)
+    df['IS_COLLAPSE'] = (df['SPOILED_HRS'] >= 6.0).astype(int)
+    df['BASE'] = df['BASE'].astype('category')
+    
+    # Feature Engineering
+    df['RIGIDITY'] = df['SEQ_TTL_LEGS'] / (df['TOTAL_BLOCKED_HRS'].fillna(1) + 1)
+    df['DHD_LEVERAGE'] = df['IN_SEQ_DHD'].fillna(0) * (df['SEQ_TTL_LEGS'] + 1)
+    df['NET_VULN'] = 10 - df['VIS_MILES'].fillna(10.0)
+    
+    features = ['DHD_LEVERAGE', 'RIGIDITY', 'NET_VULN', 'TOTAL_BLOCKED_HRS', 'SEQ_TTL_LEGS']
+    X = df[features + ['BASE']].copy()
+    y = df['IS_COLLAPSE']
+
+    # --- 2. THE AUC BOOST (V90 Logic) ---
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model_pre = HistGradientBoostingClassifier(
+        max_iter=1000, learning_rate=0.005, l2_regularization=200.0, random_state=42
+    ).fit(X_train, y_train)
+    
+    auc_score = roc_auc_score(y_test, model_pre.predict_proba(X_test)[:, 1])
+    print(f">>> MODEL AUC SCORE: {auc_score:.4f}")
+    print("-" * 85)
+
+    # --- 3. INPUTS WITH FULL GUIDES & EXTREMES ---
+    print("[PHASE 1: PREEMPTIVE DATA INPUT]")
+    
+    print(f"   [GUIDE] Bases: {', '.join(df['BASE'].cat.categories)}")
+    u_base = input("   Enter Hub/Base: ").upper()
+
+    print(f"   [GUIDE] Low: 1-2 | Med: 3-5 | High: 6+ (Extreme: {int(df['SEQ_TTL_LEGS'].max())})")
+    u_legs = int(input("   Enter Number of Legs: "))
+
+    print(f"   [GUIDE] Low: <8 hrs | Normal: 10-12 hrs | High: >18 hrs (Extreme: {df['TOTAL_BLOCKED_HRS'].max():.1f})")
+    u_block = float(input("   Enter Total Block Hours: "))
+
+    print(f"   [GUIDE] Clear: 10.0 | Foggy: 2.0-5.0 | Stormy: <1.5 (Extreme: 0.0)")
+    u_hub_vis = float(input("   Reported HUB Visibility: "))
+
+    print(f"   [GUIDE] Normal: 0-1 | High Leverage: 3+ (Extreme: {int(df['IN_SEQ_DHD'].max())})")
+    u_dhd = float(input("   Number of Deadheads (DHD): "))
+
+    # --- 4. HISTORICAL PERFORMANCE & EXTREMES ---
+    matches = df[(df['BASE'] == u_base) & (df['SEQ_TTL_LEGS'] == u_legs)].drop_duplicates(subset=['SEQ_NBR'])
+    print("\n" + "-"*40)
+    print("      HISTORICAL PERFORMANCE DATA      ")
+    print("-" * 40)
+    if not matches.empty:
+        avg_s = matches['SPOILED_HRS'].mean()
+        max_s = matches['SPOILED_HRS'].max()
+        min_s = matches['SPOILED_HRS'].min()
+        print(f"   Matches found: {len(matches)}")
+        print(f"   Average Historical Spoilage: {avg_s:.2f} hrs")
+        print(f"   [EXTREME] Best Case: {min_s:.2f} hrs | Worst Case: {max_s:.2f} hrs")
+    else:
+        print("   No exact historical matches found for this profile.")
+
+    # --- 5. INITIAL AI RISK ---
+    test_case = pd.DataFrame({
+        'DHD_LEVERAGE': [u_dhd * (u_legs + 1)], 'RIGIDITY': [u_legs / (u_block + 1)],
+        'NET_VULN': [10 - u_hub_vis], 'TOTAL_BLOCKED_HRS': [u_block], 'SEQ_TTL_LEGS': [u_legs], 'BASE': [u_base]
+    })
+    test_case['BASE'] = pd.Categorical(test_case['BASE'], categories=df['BASE'].cat.categories)
+    pre_risk = model_pre.predict_proba(test_case)[:, 1][0] * 100
+    
+    print("-" * 40)
+    print(f">>> AI ESTIMATED PREEMPTIVE RISK: {pre_risk:.1f}%")
+    print("-" * 40)
+    input("\nPress [ENTER] to Begin Route Operations...")
+
+    # --- 6. REACTIVE PHASE (Rational Speed-Up Logic) ---
+    accum_delay = 0
+    stress_penalty = 0
+    
+    for leg in range(1, u_legs + 1):
+        print(f"\nLEG {leg} of {u_legs}:")
+        v_in = input(f"   Leg {leg} Destination Visibility (0-10): ")
+        d_in = input(f"   Minutes of delay added this leg? ")
+        
+        leg_vis = float(v_in) if v_in else 10.0
+        leg_delay = int(d_in) if d_in.isdigit() else 0
+        vis_multiplier = 1.0 + (10 - leg_vis) * 0.05 
+
+        s_in = input(f"   Apply Speed-Up? (Y/N): ").upper()
+        if s_in == "Y":
+            # Only allow speed-up if there is an actual delay to fix
+            if (accum_delay + leg_delay) <= 0:
+                print("   [!] Logic Check: Already on schedule. Speed-up ignored to save stress.")
+            else:
+                s_val = input(f"   Minutes to recover? ")
+                recovery_mins = int(s_val) if s_val.isdigit() else 15
+                
+                # Apply recovery to delay
+                leg_delay -= recovery_mins
+                # Rational Penalty: Benefit of time is ~0.5% risk reduction per min, 
+                # Stress is only 0.05% increase per min.
+                stress_penalty += (recovery_mins * 0.05) 
+                print(f"   [+] Speed-up: Net time recovery: {recovery_mins}m.")
+
+        accum_delay = max(0, accum_delay + leg_delay)
+        
+        # Calculate Risk: (Base AI) + (Delay * Legs * Vis_Multiplier) + Penalties
+        delay_impact = (accum_delay * (0.35 + (u_legs * 0.05))) * vis_multiplier
+        reactive_risk = min(99.9, pre_risk + delay_impact + stress_penalty)
+        
+        print(f"   >>> DYNAMIC RISK: {reactive_risk:.1f}% | TOTAL SYSTEM DELAY: {accum_delay}m")
+
+    print("\n" + "="*85)
+    print(f"   FINAL SEQUENCE RISK: {reactive_risk:.1f}%")
+    print("="*85)
+
+if __name__ == "__main__":
+    run_v323_full_guide()
