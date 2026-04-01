@@ -1,0 +1,118 @@
+import pandas as pd
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.metrics import roc_auc_score
+from sklearn.utils import resample
+
+def run_v59_peak_restoration():
+    print("--- V59: PEAK RESTORATION (AUTO-MAPPING ENABLED) ---")
+    
+    # 1. LOAD DATA
+    # Looking for the merged file created by your merge_and_clean script
+    file_path = 'data/Processed_Assignment_Weather_Data.csv'
+    if not os.path.exists(file_path):
+        print(f"Error: {file_path} not found. Please run your merge script first.")
+        return
+        
+    df = pd.read_csv(file_path)
+    print(f"Successfully loaded {len(df)} rows.")
+
+    # 2. SAMPLING FOR PERFORMANCE
+    # 50k rows with high iterations is slow; 15k is plenty for a stable AUC
+    if len(df) > 15000:
+        print("   [!] Sampling 15,000 rows for processing speed...")
+        df = df.sample(n=15000, random_state=42).reset_index(drop=True)
+
+    # 3. VARIABLE MAPPING (Handling administrative vs. operational names)
+    # Map SEQ_BASE -> BASE and FLEET_CD -> FLEET
+    df['BASE'] = df['SEQ_BASE'].astype(str).str.upper()
+    df['FLEET'] = df['FLEET_CD'].astype(str).str.upper()
+    df['BASE_FLEET'] = df['BASE'] + "_" + df['FLEET']
+    
+    # Create Binary Target: Any spoilage > 0 is a 1 (Spoiled)
+    df['IS_SPOILED'] = (df['TOTAL_SPOILED_HRS'] > 0).astype(int)
+
+    # 4. ROBUST FEATURE ENGINEERING
+    print("Engineering features...")
+    
+    # Inherited Risk (Peak departure window 1pm - 6pm)
+    df['INHERITED_DELAY_RISK'] = df['START_HOUR'].apply(lambda x: 1 if 13 <= x <= 18 else 0)
+
+    # Visibility Handling (Check for raw 'VIS' or processed 'VIS_MILES')
+    vis_col = 'VIS_MILES' if 'VIS_MILES' in df.columns else 'VIS'
+    if vis_col in df.columns:
+        # Clean visibility strings if they look like "16093,7" or similar
+        df['VIS_CLEAN'] = pd.to_numeric(df[vis_col].astype(str).str.split(',').str[0], errors='coerce').fillna(10.0)
+        # Convert to miles if it looks like meters (values > 100)
+        if df['VIS_CLEAN'].mean() > 100:
+            df['VIS_CLEAN'] = df['VIS_CLEAN'] * 0.000621
+    else:
+        df['VIS_CLEAN'] = 10.0
+
+    # Hangover Stress (6-hour lookback on visibility)
+    df['VIS_LAG_6H'] = df['VIS_CLEAN'].shift(6).fillna(10.0)
+    df['HANGOVER_STRESS'] = (10 - df['VIS_LAG_6H']).clip(lower=0)
+
+    # Fatigue & Systemic Pressure
+    # Note: Using SEQ_CALNDR_DAY_CT if available, otherwise defaulting to 1
+    day_ct_col = 'SEQ_CALNDR_DAY_CT' if 'SEQ_CALNDR_DAY_CT' in df.columns else 'SEQ_TTL_DAYS'
+    day_ct = df[day_ct_col] if day_ct_col in df.columns else 1
+    
+    df['FATIGUE_ACCUM'] = df['SEQ_TTL_LEGS'] * (day_ct + 1)
+    df['SYSTEMIC_PRESSURE'] = df['HANGOVER_STRESS'] * df['SEQ_TTL_LEGS']
+    
+    # Ensure LAYOVER exists
+    if 'LAYOVER' not in df.columns:
+        df['LAYOVER'] = 0
+
+    # 5. SELECT FINAL FEATURES
+    features = [
+        'DOW', 'INHERITED_DELAY_RISK', 'SYSTEMIC_PRESSURE', 
+        'FATIGUE_ACCUM', 'SEQ_TTL_LEGS', 'TOTAL_BLOCKED_HRS', 'LAYOVER'
+    ]
+    
+    X = df[features + ['BASE', 'FLEET', 'BASE_FLEET']].copy()
+    
+    # Convert categorical strings to category type for HistGradientBoosting
+    for col in ['BASE', 'FLEET', 'BASE_FLEET']: 
+        X[col] = X[col].astype('category')
+    
+    y = df['IS_SPOILED']
+
+    # 6. BALANCED TRAINING
+    print("Balancing classes and training...")
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    train_data = pd.concat([X_train, y_train], axis=1)
+    spoiled = train_data[train_data.IS_SPOILED == 1]
+    not_spoiled = train_data[train_data.IS_SPOILED == 0]
+    
+    # Down-sample the majority class to match the number of spoiled flights
+    if len(spoiled) > 0:
+        not_spoiled_down = resample(not_spoiled, replace=False, n_samples=len(spoiled), random_state=42)
+        X_train_bal = pd.concat([spoiled, not_spoiled_down]).drop('IS_SPOILED', axis=1)
+        y_train_bal = pd.concat([spoiled, not_spoiled_down])['IS_SPOILED']
+    else:
+        print("Warning: No spoiled instances found in training set. Using full set.")
+        X_train_bal, y_train_bal = X_train, y_train
+
+    # 7. THE MODEL (Optimized for Speed)
+    model = HistGradientBoostingClassifier(
+        max_iter=500,          # Reduced iterations for speed
+        learning_rate=0.01,    # Higher learning rate to compensate
+        max_depth=8,           # Shallow trees are faster
+        l2_regularization=10.0, 
+        random_state=42
+    )
+    
+    model.fit(X_train_bal, y_train_bal)
+    
+    # 8. RESULTS
+    probs = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, probs)
+    print(f"\n>>> V59 RESTORATION AUC (Sampled): {auc:.4f} <<<")
+
+if __name__ == "__main__":
+    run_v59_peak_restoration()
